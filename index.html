@@ -27,6 +27,23 @@
   #font-status[hidden] { display: none; }
   #font-status button { margin-left: 10px; cursor: pointer; }
 </style>
+<!-- office-preloads -->
+<script>
+{
+  let appURL = "app.wasm.gz?v=6dd0d784dcb5e088";
+  let rendererURL = "skwasm-11189c07f4eacad0/skwasm.wasm";
+  try { new DecompressionStream('brotli'); appURL = "app.wasm.br?v=898b1f24ebd34133"; } catch {}
+  try { new DecompressionStream('brotli'); rendererURL = "skwasm-11189c07f4eacad0/skwasm.wasm.br?v=420a338a3356c7cf"; } catch {}
+  // Share responses with the host instead of relying on preload-cache reuse.
+  globalThis.__starlingPreloads = {};
+  for (const url of [appURL, rendererURL, "fonts/manifest.json?v=d1d8dc0a0ee11e68"]) {
+    const response = fetch(url);
+    response.catch(() => {}); // errors are handled when the host consumes it
+    globalThis.__starlingPreloads[new URL(url, document.baseURI).href] = response;
+  }
+}
+</script>
+<!-- /office-preloads -->
 </head>
 <body>
 <canvas id="starling"></canvas>
@@ -39,22 +56,25 @@
     console.error(String(event.error?.stack || event.message));
     window.dispatchEvent(new Event('starling-reader-failed'));
   });
-  import { startStarling } from './starling.js?v=d88d2a415c35b649';
+  import { startStarling } from './starling.js?v=74ae4a76952c5834';
   const fontStatus = document.getElementById('font-status');
   const retryFonts = fontStatus.querySelector('button');
   retryFonts.addEventListener('click', () => window.starling?.retryFonts().catch(console.error));
   startStarling({
     canvas: document.getElementById('starling'),
-    app: 'app.wasm.gz?v=da281ff6f7c85b6a',
+    appBrotli: "app.wasm.br?v=898b1f24ebd34133",
+    preloaded: globalThis.__starlingPreloads,
+    app: 'app.wasm.gz?v=6dd0d784dcb5e088',
     // The app's command line (Office: ['--slides'] starts in Slides).
     args: ["garden-presentation.pptx"],
     initialFiles: [{"name": "garden-presentation.pptx", "url": "examples/garden-presentation.pptx?v=0861a15fe7e52c5b"}],
     // The tab's URL path is the app's route (the wiki opens the page it names).
     initialRoute: location.pathname + location.search + location.hash,
-    skwasmBase: 'skwasm-f2bc4996fb630c7b/',
+    skwasmBrotli: "skwasm-11189c07f4eacad0/skwasm.wasm.br?v=420a338a3356c7cf",
+    skwasmBase: 'skwasm-11189c07f4eacad0/',
     // Written by build/web-app.sh; the first face is also the fallback
     // for any family nobody loaded.
-    fonts: 'fonts/manifest.json',
+    fonts: 'fonts/manifest.json?v=d1d8dc0a0ee11e68',
     onFontStatus({ pending, failed }) {
       fontStatus.hidden = !pending.length && !failed.length;
       fontStatus.querySelector('span').textContent = failed.length
